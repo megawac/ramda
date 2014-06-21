@@ -306,7 +306,7 @@
 
         // Returns a fixed list (of size `n`) of identical values.
         R.repeatN = _(function(value, n) {
-            var arr = [];
+            var arr = Array(n);
             var i = -1;
             while(++i < n) {
                 arr[i] = value;
