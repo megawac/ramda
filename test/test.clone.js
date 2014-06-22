@@ -15,6 +15,12 @@ describe('clone', function() {
       var c = clone([o1, o2, o3]);
       assert.equal(c[0], o1);
     });
+
+    it('clones arguments to array', function() {
+      (function() {
+        assert.deepEqual(clone(arguments), [1, 2, 3, 4]);
+      })(1, 2, 3, 4);
+    });
 });
 
 

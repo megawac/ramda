@@ -239,7 +239,7 @@
 
         // Create a shallow copy of an array.
         var clone = R.clone = function(list) {
-            return list.concat();
+            return _slice(list);
         };
 
         // Core Functions
