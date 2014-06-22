@@ -344,7 +344,7 @@
         // Similar to `compose`, but processes the functions in the reverse order so that if if `var h = pipe(f, g)`,
         // `h(x)` calls `f(x)` first, passing the result of that to `g()`.
         R.pipe = function() { // TODO: type check of arguments?
-            return compose.apply(this, _slice(arguments).reverse());
+            return compose.apply(null, reverse(arguments));
         };
         aliasFor("pipe").is("sequence");
 
@@ -829,7 +829,7 @@
         });
 
         // Returns a new list with the same elements as the original list, just in the reverse order.
-        R.reverse = function(list) {
+        var reverse = R.reverse = function(list) {
             return clone(list || []).reverse();
         };
 
