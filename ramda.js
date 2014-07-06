@@ -38,19 +38,37 @@
             return fn;
         };
 
-        // (private) `slice` implemented iteratively for performance
-        var _slice = function (args, from, to) {
-            from = from || 0;
-            to = to || args.length;
-            var length = to - from,
-                arr = new Array(length),
-                i = -1;
+        /**
+         * Slices `array` from the `start` index up to, but not including, the `end` index.
+         *
+         * Note: This function is used instead of `Array#slice` to support node lists
+         * in IE < 9 and to ensure dense arrays are returned.
+         */
+        function slice(array, start, end) {
+            if (array == null) return [];
+            var index = -1,
+                length = array.length;
 
-            while (++i < length) {
-                arr[i] = args[from + i];
+            start = +start || 0;
+            if (start < 0) {
+                start = Math.max(length + start, 0);
+            } else if (start > length) {
+                start = length;
             }
-            return arr;
-        };
+            end = +end || length;
+            if (end < 0) {
+                end = Math.max(length + end, 0);
+            } else if (end > length) {
+                end = length;
+            }
+            length = start > end ? 0 : (end - start);
+
+            var result = Array(length);
+            while (++index < length) {
+                result[index] = array[start + index];
+            }
+            return result;
+        }
 
         // private concat function to merge 2 collections
         var concat = function(set1, set2) {
@@ -281,14 +299,14 @@
         // them, it might be best to pass in and identity function so that the new function correctly reports arity.
         // See for example, the definition of `project`, below.
         var useWith = R.useWith = function (fn /*, transformers */) {
-            var transformers = _slice(arguments, 1);
+            var transformers = slice(arguments, 1);
             var tlen = transformers.length;
             return curry(arity(tlen, function () {
                 var args = [], idx = -1;
                 while (++idx < tlen) {
                     args.push(transformers[idx](arguments[idx]));
                 }
-                return fn.apply(this, args.concat(_slice(arguments, tlen)));
+                return fn.apply(this, args.concat(slice(arguments, tlen)));
             }));
         };
 
@@ -299,14 +317,14 @@
         R.use = function (fn) {
             return {
                 over: function (/*transformers*/) {
-                    var transformers = _slice(arguments, 0);
+                    var transformers = slice(arguments, 0);
                     var tlen = transformers.length;
                     return curry(arity(tlen, function () {
                         var args = [], idx = -1;
                         while (++idx < tlen) {
                             args.push(transformers[idx](arguments[idx]));
                         }
-                        return fn.apply(this, args.concat(_slice(arguments, tlen)));
+                        return fn.apply(this, args.concat(slice(arguments, tlen)));
                     }));
                 }
             };
@@ -340,7 +358,7 @@
 
         // Create a shallow copy of an array.
         var clone = R.clone = function(list) {
-            return _slice(list);
+            return slice(list);
         };
 
         // Core Functions
@@ -379,7 +397,7 @@
             if (hasMethod('tail', arr)) {
                 return arr.tail();
             }
-            return (arr.length > 1) ? _slice(arr, 1) : [];
+            return (arr.length > 1) ? slice(arr, 1) : [];
         };
         aliasFor("tail").is("cdr");
 
@@ -458,7 +476,7 @@
             if (arguments.length == 1) {
                 return partially (R.pipe, arguments[0]);
             }
-            return compose.apply(this, _slice(arguments).reverse());
+            return compose.apply(this, slice(arguments).reverse());
         };
         aliasFor("pipe").is("sequence");
 
@@ -466,15 +484,15 @@
         var flip = R.flip = function (fn) {
             return function (a, b) {  
                 return arguments.length < 2 ? 
-                  function(b) { return fn.apply(this, [b, a].concat(_slice(arguments, 1))); } :
-                  fn.apply(this, [b, a].concat(_slice(arguments, 2)));
+                  function(b) { return fn.apply(this, [b, a].concat(slice(arguments, 1))); } :
+                  fn.apply(this, [b, a].concat(slice(arguments, 2)));
             };
         };
 
         // Creates a new function that acts like the supplied function except that the left-most parameters are
         // pre-filled.
         R.lPartial = function (fn) {
-            var args = _slice(arguments, 1);
+            var args = slice(arguments, 1);
             return arity(Math.max(fn.length - args.length, 0), function () {
                 return fn.apply(this, concat(args, arguments));
             });
@@ -484,7 +502,7 @@
         // Creates a new function that acts like the supplied function except that the right-most parameters are
         // pre-filled.
         R.rPartial = function (fn) {
-            var args = _slice(arguments, 1);
+            var args = slice(arguments, 1);
             return arity(Math.max(fn.length - args.length, 0), function() {
                 return fn.apply(this, concat(arguments, args));
             });
@@ -499,7 +517,7 @@
                 var position = foldl(function (cache, arg) {
                         return cache[arg] || (cache[arg] = {});
                     }, cache,
-                    _slice(arguments, 0, arguments.length - 1));
+                    slice(arguments, 0, arguments.length - 1));
                 var arg = arguments[arguments.length - 1];
                 return (position[arg] || (position[arg] = fn.apply(this, arguments)));
             };
@@ -545,7 +563,7 @@
         // Runs two separate functions against a single one and then calls another
         // function with the results of those initial calls.
         R.fork = function (after) {
-            var fns = _slice(arguments, 1);
+            var fns = slice(arguments, 1);
             return function () {
                 var args = arguments;
                 return after.apply(this, map(function (fn) {
@@ -790,7 +808,7 @@
             }
             var idx = -1, len = list.length;
             while (++idx < len && fn(list[idx])) {}
-            return _slice(list, 0, idx);
+            return slice(list, 0, idx);
         });
 
         // Returns a new list containing the first `n` elements of the given list.
@@ -809,7 +827,7 @@
         R.skipUntil = curry2(function (fn, list) {
             var idx = -1, len = list.length;
             while (++idx < len && !fn(list[idx])) {}
-            return _slice(list, idx);
+            return slice(list, idx);
         });
 
         // Returns a new list containing all **but** the first `n` elements of the given list.
@@ -817,7 +835,7 @@
             if (hasMethod('skip', list)) {
                 return list.skip(n);
             }
-            return _slice(list, n);
+            return slice(list, n);
         });
         aliasFor('skip').is('drop');
 
@@ -1109,15 +1127,19 @@
 
         // Returns the sublist of a list starting with the first index and
         // ending before the second one.
-        R.slice = invoker("slice", Array.prototype);
-        R.slice.from = flip(R.slice)(undef);
+        R.slice = curry3(function(from, to, list) {
+            return slice(list, from, to);
+        });
+        R.slice.from = curry2(function(from, list) {
+            return slice(list, from);
+        });
 
         // Removes the sub-list of `list` starting at index `start` and containing
         // `count` elements.  _Note that this is not destructive_: it returns a
         // copy of the list with the changes.
         // <small>No lists have been harmed in the application of this function.</small>
         R.remove = curry3(function(start, count, list) {
-            return concat(_slice(list, 0, Math.min(start, list.length)), _slice(list, Math.min(list.length, start + count)));
+            return concat(slice(list, 0, Math.min(start, list.length)), slice(list, Math.min(list.length, start + count)));
         });
 
         // Inserts the supplied element into the list, at index `index`.  _Note
@@ -1125,7 +1147,7 @@
         // <small>No lists have been harmed in the application of this function.</small>
         R.insert = curry3(function(index, elt, list) {
             index = index < list.length && index >= 0 ? index : list.length;
-            return concat(append(elt, _slice(list, 0, index)), _slice(list, index));
+            return concat(append(elt, slice(list, 0, index)), slice(list, index));
         });
 
         // Inserts the sub-list into the list, at index `index`.  _Note  that this
@@ -1133,7 +1155,7 @@
         // <small>No lists have been harmed in the application of this function.</small>
         R.insert.all = curry3(function(index, elts, list) {
             index = index < list.length && index >= 0 ? index : list.length;
-            return concat(concat(_slice(list, 0, index), elts), _slice(list, index));
+            return concat(concat(slice(list, 0, index), elts), slice(list, index));
         });
 
         // Returns the `n`th element of a list (zero-indexed)
@@ -1222,7 +1244,7 @@
         // that object, if it has such a function.
         R.func = function (fn, obj) {
             function _func(obj) {
-                return obj[fn].apply(obj, _slice(arguments, 1));
+                return obj[fn].apply(obj, slice(arguments, 1));
             }
             return arguments.length < 2 ? _func : _func(obj);
         };
@@ -1481,7 +1503,7 @@
                 };
                 return arguments.length > 1 ?
                         // Call function imediately if given arguments
-                        predIterator.apply(null, _slice(arguments, 1)) :
+                        predIterator.apply(null, slice(arguments, 1)) :
                         // Return a function which will call the predicates with the provided arguments
                         arity(max(pluck("length", preds)), predIterator);
             };
