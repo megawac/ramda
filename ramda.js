@@ -362,28 +362,7 @@
      *      takesOneArg(1, 2); //=> [1, undefined]
      */
     var nAry = R.nAry = (function() {
-        var cache = {
-            0: function(fn) {
-                return function() {
-                    return fn.call(this);
-                };
-            },
-            1: function(fn) {
-                return function(arg0) {
-                    return fn.call(this, arg0);
-                };
-            },
-            2: function(fn) {
-                return function(arg0, arg1) {
-                    return fn.call(this, arg0, arg1);
-                };
-            },
-            3: function(fn) {
-                return function(arg0, arg1, arg2) {
-                    return fn.call(this, arg0, arg1, arg2);
-                };
-            }
-        };
+        var cache = {};
 
 
         //     For example:
@@ -494,28 +473,7 @@
      *      takesOneArg(1, 2); //=> [1, 2]
      */
     var arity = R.arity = (function() {
-        var cache = {
-            0: function(fn) {
-                return function() {
-                    return fn.apply(this, arguments);
-                };
-            },
-            1: function(fn) {
-                return function(arg0) {
-                    return fn.apply(this, arguments);
-                };
-            },
-            2: function(fn) {
-                return function(arg0, arg1) {
-                    return fn.apply(this, arguments);
-                };
-            },
-            3: function(fn) {
-                return function(arg0, arg1, arg2) {
-                    return fn.apply(this, arguments);
-                };
-            }
-        };
+        var cache = {};
 
         //     For example:
         //     cache[5] = function(fn) {
