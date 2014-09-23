@@ -1159,7 +1159,7 @@
      *      squareThenDoubleThenTriple(5); //=> 150
      */
     R.pipe = function _pipe() {
-        return compose.apply(this, _slice(arguments).reverse());
+        return compose.apply(this, R.reverse(arguments));
     };
 
 
@@ -2947,8 +2947,11 @@
      *      R.reverse([1]);        //=> [1]
      *      R.reverse([]);         //=> []
      */
-    R.reverse = function _reverse(list) {
-        return clone(list || []).reverse();
+    R.reverse = function reverse(list) {
+        var pointer = list.length;
+        return map(function() {
+            return list[--pointer];
+        }, list);
     };
 
 
