@@ -58,20 +58,21 @@
      *      };
      *      firstThreeArgs(1, 2, 3, 4); //=> [1, 2, 3]
      */
-    function _slice(args, from, to) {
-        switch (arguments.length) {
-            case 0: throw NO_ARGS_EXCEPTION;
-            case 1: return _slice(args, 0, args.length);
-            case 2: return _slice(args, from, args.length);
-            default:
-                var length = to - from, list = new Array(length), idx = -1;
-                while (++idx < length) {
-                    list[idx] = args[from + idx];
-                }
-                return list;
+    function _slice(collection, start, end, step) {
+        var length = collection.length;
+        start = +start || 0;
+        end = typeof end === 'number' ? end : collection.length;
+        step = +step || 1;
+        length = start < end ? Math.ceil((end - start) / Math.abs(step)) : 0;
+        if (step < 0) {
+            start = end - 1;
         }
+        var result = new Array(length);
+        for (var index = 0; index < length; index++, start += step) {
+            result[index] = collection[start];
+        }
+        return result;
     }
-
 
     /**
      * Private `concat` function to merge two array-like objects.
@@ -1159,7 +1160,7 @@
      *      squareThenDoubleThenTriple(5); //=> 150
      */
     R.pipe = function _pipe() {
-        return compose.apply(this, _slice(arguments).reverse());
+        return compose.apply(this, R.reverse(arguments));
     };
 
 
@@ -2947,8 +2948,8 @@
      *      R.reverse([1]);        //=> [1]
      *      R.reverse([]);         //=> []
      */
-    R.reverse = function _reverse(list) {
-        return clone(list || []).reverse();
+    R.reverse = function reverse(list) {
+        return _slice(list, 0, list.length, -1);
     };
 
 
