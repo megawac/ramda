@@ -1,6 +1,5 @@
 var __ = require('./__');
 var _curry2 = require('./internal/_curry2');
-var _slice = require('./internal/_slice');
 var arity = require('./arity');
 
 
@@ -60,16 +59,18 @@ module.exports = _curry2(function curryN(length, fn) {
         if (shortfall <= 0) {
             return fn.apply(this, arguments);
         } else {
-            var initialArgs = _slice(arguments);
+            var args = arguments;
             return curryN(shortfall, function() {
-                var currentArgs = _slice(arguments);
-                var combinedArgs = [];
-                var idx = -1;
+                var currentArgs = [];
+                var idx = -1, position = -1;
                 while (++idx < n) {
-                    var val = initialArgs[idx];
-                    combinedArgs[idx] = (val === __ ? currentArgs.shift() : val);
+                    var val = args[idx];
+                    currentArgs.push(val === __ ? arguments[++position] : val);
                 }
-                return fn.apply(this, combinedArgs.concat(currentArgs));
+                while (++position < arguments.length) {
+                    currentArgs.push(arguments[position]);
+                }
+                return fn.apply(this, currentArgs);
             });
         }
     });

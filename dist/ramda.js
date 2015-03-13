@@ -33,6 +33,18 @@
         return false;
     };
 
+    var _arrayReduce = function _arrayReduce(xf, acc, list) {
+        var idx = -1, len = list.length;
+        while (++idx < len) {
+            acc = xf.step(acc, list[idx]);
+            if (acc && acc.__transducers_reduced__) {
+                acc = acc.value;
+                break;
+            }
+        }
+        return xf.result(acc);
+    };
+
     var _assoc = function _assoc(prop, val, obj) {
         var result = {};
         for (var p in obj) {
@@ -40,6 +52,10 @@
         }
         result[prop] = val;
         return result;
+    };
+
+    var _cloneRegExp = function _cloneRegExp(pattern) {
+        return new RegExp(pattern.source, (pattern.global ? 'g' : '') + (pattern.ignoreCase ? 'i' : '') + (pattern.multiline ? 'm' : '') + (pattern.sticky ? 'y' : '') + (pattern.unicode ? 'u' : ''));
     };
 
     /**
@@ -107,6 +123,12 @@
             }
         }
         return false;
+    };
+
+    var _createMapEntry = function _createMapEntry(key, val) {
+        var obj = {};
+        obj[key] = val;
+        return obj;
     };
 
     /**
@@ -318,6 +340,10 @@
         return Object.prototype.hasOwnProperty.call(obj, prop);
     };
 
+    var _identity = function _identity(x) {
+        return x;
+    };
+
     /**
      * Internal implementation of `indexOf`.
      * Returns the position of the first occurrence of an item in an array
@@ -380,6 +406,10 @@
         return value != null && value === Object(value) && typeof value.then === 'function';
     };
 
+    var _isTransformer = function _isTransformer(obj) {
+        return typeof obj.step === 'function' && typeof obj.result === 'function';
+    };
+
     /**
      * Internal implementation of `lastIndexOf`.
      * Returns the position of the last occurrence of an item in an array
@@ -420,6 +450,12 @@
 
     var _multiply = function _multiply(a, b) {
         return a * b;
+    };
+
+    var _not = function _not(f) {
+        return function () {
+            return !f.apply(this, arguments);
+        };
     };
 
     var _nth = function _nth(n, list) {
@@ -470,30 +506,15 @@
         }
     };
 
-    /**
-     * Internal implementation of `pickAll`
-     *
-     * @private
-     * @see R.pickAll
-     */
-    var _pickAll = function _pickAll(names, obj) {
-        var copy = {};
-        _forEach(function (name) {
-            copy[name] = obj[name];
-        }, names);
-        return copy;
-    };
-
     var _prepend = function _prepend(el, list) {
         return _concat([el], list);
     };
 
-    var _reduce = function _reduce(fn, acc, list) {
-        var idx = -1, len = list.length;
-        while (++idx < len) {
-            acc = fn(acc, list[idx]);
-        }
-        return acc;
+    var _reduced = function (x) {
+        return x && x.__transducers_reduced__ ? x : {
+            value: x,
+            __transducers_reduced__: true
+        };
     };
 
     /**
@@ -563,6 +584,308 @@
         }
     };
 
+    var _symIterator = typeof Symbol !== 'undefined' ? Symbol.iterator : '@@iterator';
+
+    var _xall = function () {
+        function XAll(f, xf) {
+            this.xf = xf;
+            this.f = f;
+            this.all = true;
+        }
+        XAll.prototype.init = function () {
+            return this.xf.init();
+        };
+        XAll.prototype.result = function (result) {
+            if (this.all) {
+                result = this.xf.step(result, true);
+            }
+            return this.xf.result(result);
+        };
+        XAll.prototype.step = function (result, input) {
+            if (!this.f(input)) {
+                this.all = false;
+                result = _reduced(this.xf.step(result, false));
+            }
+            return result;
+        };
+        return _curry2(function _xall(f, xf) {
+            return new XAll(f, xf);
+        });
+    }();
+
+    var _xany = function () {
+        function XAny(f, xf) {
+            this.xf = xf;
+            this.f = f;
+            this.any = false;
+        }
+        XAny.prototype.init = function () {
+            return this.xf.init();
+        };
+        XAny.prototype.result = function (result) {
+            if (!this.any) {
+                result = this.xf.step(result, false);
+            }
+            return this.xf.result(result);
+        };
+        XAny.prototype.step = function (result, input) {
+            if (this.f(input)) {
+                this.any = true;
+                result = _reduced(this.xf.step(result, true));
+            }
+            return result;
+        };
+        return _curry2(function _xany(f, xf) {
+            return new XAny(f, xf);
+        });
+    }();
+
+    var _xdrop = function () {
+        function XDrop(n, xf) {
+            this.xf = xf;
+            this.n = n;
+        }
+        XDrop.prototype.init = function () {
+            return this.xf.init();
+        };
+        XDrop.prototype.result = function (result) {
+            return this.xf.result(result);
+        };
+        XDrop.prototype.step = function (result, input) {
+            if (this.n > 0) {
+                this.n -= 1;
+                return result;
+            }
+            return this.xf.step(result, input);
+        };
+        return _curry2(function _xdrop(n, xf) {
+            return new XDrop(n, xf);
+        });
+    }();
+
+    var _xdropWhile = function () {
+        function XDropWhile(f, xf) {
+            this.xf = xf;
+            this.f = f;
+        }
+        XDropWhile.prototype.init = function () {
+            return this.xf.init();
+        };
+        XDropWhile.prototype.result = function (result) {
+            return this.xf.result(result);
+        };
+        XDropWhile.prototype.step = function (result, input) {
+            if (this.f) {
+                if (this.f(input)) {
+                    return result;
+                }
+                this.f = null;
+            }
+            return this.xf.step(result, input);
+        };
+        return _curry2(function _xdropWhile(f, xf) {
+            return new XDropWhile(f, xf);
+        });
+    }();
+
+    var _xfilter = function () {
+        function XFilter(f, xf) {
+            this.xf = xf;
+            this.f = f;
+        }
+        XFilter.prototype.init = function () {
+            return this.xf.init();
+        };
+        XFilter.prototype.result = function (result) {
+            return this.xf.result(result);
+        };
+        XFilter.prototype.step = function (result, input) {
+            return this.f(input) ? this.xf.step(result, input) : result;
+        };
+        return _curry2(function _xfilter(f, xf) {
+            return new XFilter(f, xf);
+        });
+    }();
+
+    var _xfind = function () {
+        function XFind(f, xf) {
+            this.xf = xf;
+            this.f = f;
+            this.found = false;
+        }
+        XFind.prototype.init = function () {
+            return this.xf.init();
+        };
+        XFind.prototype.result = function (result) {
+            if (!this.found) {
+                result = this.xf.step(result, void 0);
+            }
+            return this.xf.result(result);
+        };
+        XFind.prototype.step = function (result, input) {
+            if (this.f(input)) {
+                this.found = true;
+                result = _reduced(this.xf.step(result, input));
+            }
+            return result;
+        };
+        return _curry2(function _xfind(f, xf) {
+            return new XFind(f, xf);
+        });
+    }();
+
+    var _xfindIndex = function () {
+        function XFindIndex(f, xf) {
+            this.xf = xf;
+            this.f = f;
+            this.idx = -1;
+            this.found = false;
+        }
+        XFindIndex.prototype.init = function () {
+            return this.xf.init();
+        };
+        XFindIndex.prototype.result = function (result) {
+            if (!this.found) {
+                result = this.xf.step(result, -1);
+            }
+            return this.xf.result(result);
+        };
+        XFindIndex.prototype.step = function (result, input) {
+            this.idx += 1;
+            if (this.f(input)) {
+                this.found = true;
+                result = _reduced(this.xf.step(result, this.idx));
+            }
+            return result;
+        };
+        return _curry2(function _xfindIndex(f, xf) {
+            return new XFindIndex(f, xf);
+        });
+    }();
+
+    var _xfindLast = function () {
+        function XFindLast(f, xf) {
+            this.xf = xf;
+            this.f = f;
+        }
+        XFindLast.prototype.init = function () {
+            return this.xf.init();
+        };
+        XFindLast.prototype.result = function (result) {
+            return this.xf.result(this.xf.step(result, this.last));
+        };
+        XFindLast.prototype.step = function (result, input) {
+            if (this.f(input)) {
+                this.last = input;
+            }
+            return result;
+        };
+        return _curry2(function _xfindLast(f, xf) {
+            return new XFindLast(f, xf);
+        });
+    }();
+
+    var _xfindLastIndex = function () {
+        function XFindLastIndex(f, xf) {
+            this.xf = xf;
+            this.f = f;
+            this.idx = -1;
+            this.lastIdx = -1;
+        }
+        XFindLastIndex.prototype.init = function () {
+            return this.xf.init();
+        };
+        XFindLastIndex.prototype.result = function (result) {
+            return this.xf.result(this.xf.step(result, this.lastIdx));
+        };
+        XFindLastIndex.prototype.step = function (result, input) {
+            this.idx += 1;
+            if (this.f(input)) {
+                this.lastIdx = this.idx;
+            }
+            return result;
+        };
+        return _curry2(function _xfindLastIndex(f, xf) {
+            return new XFindLastIndex(f, xf);
+        });
+    }();
+
+    var _xmap = function () {
+        function XMap(f, xf) {
+            this.xf = xf;
+            this.f = f;
+        }
+        XMap.prototype.init = function () {
+            return this.xf.init();
+        };
+        XMap.prototype.result = function (result) {
+            return this.xf.result(result);
+        };
+        XMap.prototype.step = function (result, input) {
+            return this.xf.step(result, this.f(input));
+        };
+        return _curry2(function _xmap(f, xf) {
+            return new XMap(f, xf);
+        });
+    }();
+
+    var _xtake = function () {
+        function XTake(n, xf) {
+            this.xf = xf;
+            this.n = n;
+        }
+        XTake.prototype.init = function () {
+            return this.xf.init();
+        };
+        XTake.prototype.result = function (result) {
+            return this.xf.result(result);
+        };
+        XTake.prototype.step = function (result, input) {
+            this.n -= 1;
+            return this.n >= 0 ? this.xf.step(result, input) : _reduced(result);
+        };
+        return _curry2(function _xtake(n, xf) {
+            return new XTake(n, xf);
+        });
+    }();
+
+    var _xtakeWhile = function () {
+        function XTakeWhile(f, xf) {
+            this.xf = xf;
+            this.f = f;
+        }
+        XTakeWhile.prototype.init = function () {
+            return this.xf.init();
+        };
+        XTakeWhile.prototype.result = function (result) {
+            return this.xf.result(result);
+        };
+        XTakeWhile.prototype.step = function (result, input) {
+            return this.f(input) ? this.xf.step(result, input) : _reduced(result);
+        };
+        return _curry2(function _xtakeWhile(f, xf) {
+            return new XTakeWhile(f, xf);
+        });
+    }();
+
+    var _xwrap = function () {
+        function XWrap(fn) {
+            this.f = fn;
+        }
+        XWrap.prototype.init = function () {
+            throw new Error('init not implemented on XWrap');
+        };
+        XWrap.prototype.result = function (acc) {
+            return acc;
+        };
+        XWrap.prototype.step = function (acc, x) {
+            return this.f(acc, x);
+        };
+        return function _xwrap(fn) {
+            return new XWrap(fn);
+        };
+    }();
+
     /**
      * Adds two numbers (or strings). Equivalent to `a + b` but curried.
      *
@@ -584,30 +907,8 @@
     var add = _curry2(_add);
 
     /**
-     * Returns `true` if all elements of the list match the predicate, `false` if there are any
-     * that don't.
-     *
-     * @func
-     * @memberOf R
-     * @category List
-     * @sig (a -> Boolean) -> [a] -> Boolean
-     * @param {Function} fn The predicate function.
-     * @param {Array} list The array to consider.
-     * @return {Boolean} `true` if the predicate is satisfied by every element, `false`
-     *         otherwise.
-     * @example
-     *
-     *      var lessThan2 = R.flip(R.lt)(2);
-     *      var lessThan3 = R.flip(R.lt)(3);
-     *      var xs = R.range(1, 3);
-     *      xs; //=> [1, 2]
-     *      R.all(lessThan2)(xs); //=> false
-     *      R.all(lessThan3)(xs); //=> true
-     */
-    var all = _curry2(_all);
-
-    /**
-     * Returns a function that always returns the given value.
+     * Returns a function that always returns the given value. Note that for non-primitives the value
+     * returned is a reference to the original value.
      *
      * @func
      * @memberOf R
@@ -653,29 +954,6 @@
             return f.apply(this, arguments) && g.apply(this, arguments);
         };
     });
-
-    /**
-     * Returns `true` if at least one of elements of the list match the predicate, `false`
-     * otherwise.
-     *
-     * @func
-     * @memberOf R
-     * @category List
-     * @sig (a -> Boolean) -> [a] -> Boolean
-     * @param {Function} fn The predicate function.
-     * @param {Array} list The array to consider.
-     * @return {Boolean} `true` if the predicate is satisfied by at least one element, `false`
-     *         otherwise.
-     * @example
-     *
-     *      var lessThan0 = R.flip(R.lt)(0);
-     *      var lessThan2 = R.flip(R.lt)(2);
-     *      var xs = R.range(1, 3);
-     *      xs; //=> [1, 2]
-     *      R.any(lessThan0)(xs); //=> false
-     *      R.any(lessThan2)(xs); //=> true
-     */
-    var any = _curry2(_any);
 
     /**
      * Applies function `fn` to the argument list `args`. This is useful for
@@ -957,11 +1235,7 @@
      *      );
      *      matchPhrases(['foo', 'bar', 'baz']); //=> {must: [{match_phrase: 'foo'}, {match_phrase: 'bar'}, {match_phrase: 'baz'}]}
      */
-    var createMapEntry = _curry2(function (key, val) {
-        var obj = {};
-        obj[key] = val;
-        return obj;
-    });
+    var createMapEntry = _curry2(_createMapEntry);
 
     /**
      * Returns a curried equivalent of the provided function, with the
@@ -1019,16 +1293,18 @@
             if (shortfall <= 0) {
                 return fn.apply(this, arguments);
             } else {
-                var initialArgs = _slice(arguments);
+                var args = arguments;
                 return curryN(shortfall, function () {
-                    var currentArgs = _slice(arguments);
-                    var combinedArgs = [];
-                    var idx = -1;
+                    var currentArgs = [];
+                    var idx = -1, position = -1;
                     while (++idx < n) {
-                        var val = initialArgs[idx];
-                        combinedArgs[idx] = val === __ ? currentArgs.shift() : val;
+                        var val = args[idx];
+                        currentArgs.push(val === __ ? arguments[++position] : val);
                     }
-                    return fn.apply(this, combinedArgs.concat(currentArgs));
+                    while (++position < arguments.length) {
+                        currentArgs.push(arguments[position]);
+                    }
+                    return fn.apply(this, currentArgs);
                 });
             }
         });
@@ -1148,33 +1424,6 @@
     });
 
     /**
-     * Returns a new list containing the last `n` elements of a given list, passing each value
-     * to the supplied predicate function, skipping elements while the predicate function returns
-     * `true`. The predicate function is passed one argument: *(value)*.
-     *
-     * @func
-     * @memberOf R
-     * @category List
-     * @sig (a -> Boolean) -> [a] -> [a]
-     * @param {Function} fn The function called per iteration.
-     * @param {Array} list The collection to iterate over.
-     * @return {Array} A new array.
-     * @example
-     *
-     *      var lteTwo = function(x) {
-     *        return x <= 2;
-     *      };
-     *
-     *      R.dropWhile(lteTwo, [1, 2, 3, 4]); //=> [3, 4]
-     */
-    var dropWhile = _curry2(function dropWhile(pred, list) {
-        var idx = -1, len = list.length;
-        while (++idx < len && pred(list[idx])) {
-        }
-        return _slice(list, idx);
-    });
-
-    /**
      * Tests if two items are equal.  Equality is strict here, meaning reference equality for objects and
      * non-coercing equality for primitives.
      *
@@ -1245,118 +1494,6 @@
      *      R.filterIndexed(lastTwo, [8, 6, 7, 5, 3, 0, 9]); //=> [0, 9]
      */
     var filterIndexed = _curry2(_filterIndexed);
-
-    /**
-     * Returns the first element of the list which matches the predicate, or `undefined` if no
-     * element matches.
-     *
-     * @func
-     * @memberOf R
-     * @category List
-     * @sig (a -> Boolean) -> [a] -> a | undefined
-     * @param {Function} fn The predicate function used to determine if the element is the
-     *        desired one.
-     * @param {Array} list The array to consider.
-     * @return {Object} The element found, or `undefined`.
-     * @example
-     *
-     *      var xs = [{a: 1}, {a: 2}, {a: 3}];
-     *      R.find(R.propEq('a', 2))(xs); //=> {a: 2}
-     *      R.find(R.propEq('a', 4))(xs); //=> undefined
-     */
-    var find = _curry2(function find(fn, list) {
-        var idx = -1;
-        var len = list.length;
-        while (++idx < len) {
-            if (fn(list[idx])) {
-                return list[idx];
-            }
-        }
-    });
-
-    /**
-     * Returns the index of the first element of the list which matches the predicate, or `-1`
-     * if no element matches.
-     *
-     * @func
-     * @memberOf R
-     * @category List
-     * @sig (a -> Boolean) -> [a] -> Number
-     * @param {Function} fn The predicate function used to determine if the element is the
-     * desired one.
-     * @param {Array} list The array to consider.
-     * @return {Number} The index of the element found, or `-1`.
-     * @example
-     *
-     *      var xs = [{a: 1}, {a: 2}, {a: 3}];
-     *      R.findIndex(R.propEq('a', 2))(xs); //=> 1
-     *      R.findIndex(R.propEq('a', 4))(xs); //=> -1
-     */
-    var findIndex = _curry2(function findIndex(fn, list) {
-        var idx = -1;
-        var len = list.length;
-        while (++idx < len) {
-            if (fn(list[idx])) {
-                return idx;
-            }
-        }
-        return -1;
-    });
-
-    /**
-     * Returns the last element of the list which matches the predicate, or `undefined` if no
-     * element matches.
-     *
-     * @func
-     * @memberOf R
-     * @category List
-     * @sig (a -> Boolean) -> [a] -> a | undefined
-     * @param {Function} fn The predicate function used to determine if the element is the
-     * desired one.
-     * @param {Array} list The array to consider.
-     * @return {Object} The element found, or `undefined`.
-     * @example
-     *
-     *      var xs = [{a: 1, b: 0}, {a:1, b: 1}];
-     *      R.findLast(R.propEq('a', 1))(xs); //=> {a: 1, b: 1}
-     *      R.findLast(R.propEq('a', 4))(xs); //=> undefined
-     */
-    var findLast = _curry2(function findLast(fn, list) {
-        var idx = list.length;
-        while (idx--) {
-            if (fn(list[idx])) {
-                return list[idx];
-            }
-        }
-    });
-
-    /**
-     * Returns the index of the last element of the list which matches the predicate, or
-     * `-1` if no element matches.
-     *
-     * @func
-     * @memberOf R
-     * @category List
-     * @sig (a -> Boolean) -> [a] -> Number
-     * @param {Function} fn The predicate function used to determine if the element is the
-     * desired one.
-     * @param {Array} list The array to consider.
-     * @return {Number} The index of the element found, or `-1`.
-     * @example
-     *
-     *      var xs = [{a: 1, b: 0}, {a:1, b: 1}];
-     *      R.findLastIndex(R.propEq('a', 1))(xs); //=> 1
-     *      R.findLastIndex(R.propEq('a', 4))(xs); //=> -1
-     */
-    var findLastIndex = _curry2(function findLastIndex(fn, list) {
-        var idx = list.length;
-        while (idx--) {
-            if (fn(list[idx])) {
-                return idx;
-            }
-        }
-        return -1;
-    });
 
     /**
      * Iterate over an input `list`, calling a provided function `fn` for each element in the
@@ -1563,9 +1700,7 @@
      *      var obj = {};
      *      R.identity(obj) === obj; //=> true
      */
-    var identity = _curry1(function identity(x) {
-        return x;
-    });
+    var identity = _curry1(_identity);
 
     /**
      * Creates a function that will process either the `onTrue` or the `onFalse` function depending
@@ -2403,11 +2538,7 @@
      *      f(11); //=> false
      *      f(9); //=> true
      */
-    var not = _curry1(function not(f) {
-        return function () {
-            return !f.apply(this, arguments);
-        };
-    });
+    var not = _curry1(_not);
 
     /**
      * Returns the nth element in a list.
@@ -2551,34 +2682,6 @@
     });
 
     /**
-     * Takes a predicate and a list and returns the pair of lists of
-     * elements which do and do not satisfy the predicate, respectively.
-     *
-     * @func
-     * @memberOf R
-     * @category List
-     * @sig (a -> Boolean) -> [a] -> [[a],[a]]
-     * @param {Function} pred A predicate to determine which array the element belongs to.
-     * @param {Array} list The array to partition.
-     * @return {Array} A nested array, containing first an array of elements that satisfied the predicate,
-     *         and second an array of elements that did not satisfy.
-     * @example
-     *
-     *      R.partition(R.contains('s'), ['sss', 'ttt', 'foo', 'bars']);
-     *      //=> [ [ 'sss', 'bars' ],  [ 'ttt', 'foo' ] ]
-     */
-    var partition = _curry2(function partition(pred, list) {
-        return _reduce(function (acc, elt) {
-            var xs = acc[pred(elt) ? 0 : 1];
-            xs[xs.length] = elt;
-            return acc;
-        }, [
-            [],
-            []
-        ], list);
-    });
-
-    /**
      * Retrieve the value at a given path.
      *
      * @func
@@ -2662,7 +2765,16 @@
      *      R.pickAll(['a', 'd'], {a: 1, b: 2, c: 3, d: 4}); //=> {a: 1, d: 4}
      *      R.pickAll(['a', 'e', 'f'], {a: 1, b: 2, c: 3, d: 4}); //=> {a: 1, e: undefined, f: undefined}
      */
-    var pickAll = _curry2(_pickAll);
+    var pickAll = _curry2(function pickAll(names, obj) {
+        var result = {};
+        var idx = -1;
+        var len = names.length;
+        while (++idx < len) {
+            var name = names[idx];
+            result[name] = obj[name];
+        }
+        return result;
+    });
 
     /**
      * Returns a partial copy of an object containing only the keys that
@@ -2837,37 +2949,6 @@
         }
         return result;
     });
-
-    /**
-     * Returns a single item by iterating through the list, successively calling the iterator
-     * function and passing it an accumulator value and the current value from the array, and
-     * then passing the result to the next call.
-     *
-     * The iterator function receives two values: *(acc, value)*
-     *
-     * Note: `R.reduce` does not skip deleted or unassigned indices (sparse arrays), unlike
-     * the native `Array.prototype.reduce` method. For more details on this behavior, see:
-     * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/reduce#Description
-     *
-     * @func
-     * @memberOf R
-     * @category List
-     * @sig (a,b -> a) -> a -> [b] -> a
-     * @param {Function} fn The iterator function. Receives two values, the accumulator and the
-     *        current element from the array.
-     * @param {*} acc The accumulator value.
-     * @param {Array} list The list to iterate over.
-     * @return {*} The final, accumulated value.
-     * @example
-     *
-     *      var numbers = [1, 2, 3];
-     *      var add = function(a, b) {
-     *        return a + b;
-     *      };
-     *
-     *      R.reduce(add, 10, numbers); //=> 16
-     */
-    var reduce = _curry3(_reduce);
 
     /**
      * Like `reduce`, but passes additional parameters to the predicate function.
@@ -3200,22 +3281,6 @@
     });
 
     /**
-     * Adds together all the elements of a list.
-     *
-     * @func
-     * @memberOf R
-     * @category Math
-     * @sig [Number] -> Number
-     * @param {Array} list An array of numbers
-     * @return {Number} The sum of all the numbers in the list.
-     * @see reduce
-     * @example
-     *
-     *      R.sum([2,4,6,8,100,1]); //=> 121
-     */
-    var sum = reduce(_add, 0);
-
-    /**
      * Runs the given function with the supplied object, then returns the object.
      *
      * @func
@@ -3234,6 +3299,25 @@
     var tap = _curry2(function tap(fn, x) {
         fn(x);
         return x;
+    });
+
+    /**
+     * Determines whether a given string matches a given regular expression.
+     *
+     * @func
+     * @memberOf R
+     * @category String
+     * @sig RegExp -> String -> Boolean
+     * @param {RegExp} pattern
+     * @param {String} str
+     * @return {Boolean}
+     * @example
+     *
+     *      R.test(/^x/, 'xyz'); //=> true
+     *      R.test(/^y/, 'xyz'); //=> false
+     */
+    var test = _curry2(function test(pattern, str) {
+        return _cloneRegExp(pattern).test(str);
     });
 
     /**
@@ -3683,6 +3767,10 @@
         return _concat(list, [el]);
     };
 
+    var _appendTo = function _appendTo(acc, x) {
+        return _concat(acc, [x]);
+    };
+
     var _assocPath = function _assocPath(path, val, obj) {
         switch (path.length) {
         case 0:
@@ -3726,6 +3814,8 @@
             return copy([]);
         case 'Date':
             return new Date(value);
+        case 'RegExp':
+            return _cloneRegExp(value);
         default:
             return value;
         }
@@ -3842,6 +3932,41 @@
         };
     };
 
+    /**
+     * Returns a function that dispatches with different strategies based on the
+     * object in list position (last argument). If it is an array, executes [fn].
+     * Otherwise, if it has a  function with [methodname], it will execute that
+     * function (functor case). Otherwise, if it is a transformer, uses transducer
+     * [xf] to return a new transformer (transducer case). Otherwise, it will
+     * default to executing [fn].
+     *
+     * @private
+     * @param {String} methodname property to check for a custom implementation
+     * @param {Function} xf transducer to initialize if object is transformer
+     * @param {Function} fn default ramda implementation
+     * @return {Function} A function that dispatches on object in list position
+     */
+    var _dispatchable = function _dispatchable(methodname, xf, fn) {
+        return function () {
+            var length = arguments.length;
+            if (length === 0) {
+                return fn();
+            }
+            var obj = arguments[length - 1];
+            if (!_isArray(obj)) {
+                var args = _slice(arguments, 0, length - 1);
+                if (typeof obj[methodname] === 'function') {
+                    return obj[methodname].apply(obj, args);
+                }
+                if (_isTransformer(obj)) {
+                    var transducer = xf.apply(null, args);
+                    return transducer(obj);
+                }
+            }
+            return fn.apply(this, arguments);
+        };
+    };
+
     var _dissocPath = function _dissocPath(path, obj) {
         switch (path.length) {
         case 0:
@@ -3876,6 +4001,26 @@
         return obj != null && !_isArray(obj) && typeof obj[methodName] === 'function';
     };
 
+    var _isIterable = function _isIterable(x) {
+        return x[_symIterator] != null || typeof x.next === 'function';
+    };
+
+    var _iterableReduce = function _iterableReduce(xf, acc, iter) {
+        if (iter[_symIterator]) {
+            iter = iter[_symIterator]();
+        }
+        var step = iter.next();
+        while (!step.done) {
+            acc = xf.step(acc, step.value);
+            if (acc && acc.__transducers_reduced__) {
+                acc = acc.value;
+                break;
+            }
+            step = iter.next();
+        }
+        return xf.result(acc);
+    };
+
     /**
      * `_makeFlat` is a helper function that returns a one-level or fully recursive function
      * based on the flag passed in.
@@ -3905,6 +4050,107 @@
         return _map(prop(p), list);
     };
 
+    var _reduce = function _reduce(fn, acc, list) {
+        if (typeof fn === 'function') {
+            fn = _xwrap(fn);
+        }
+        if (isArrayLike(list)) {
+            return _arrayReduce(fn, acc, list);
+        }
+        if (_isIterable(list)) {
+            return _iterableReduce(fn, acc, list);
+        }
+        throw new TypeError('reduce: list must be array or iterable');
+    };
+
+    var _xgroupBy = function () {
+        function XGroupBy(f, xf) {
+            this.xf = xf;
+            this.f = f;
+            this.inputs = {};
+        }
+        XGroupBy.prototype.init = function () {
+            return this.xf.init();
+        };
+        XGroupBy.prototype.result = function (result) {
+            var key;
+            for (key in this.inputs) {
+                if (_has(key, this.inputs)) {
+                    result = this.xf.step(result, this.inputs[key]);
+                    if (result.__transducers_reduced__) {
+                        result = result.value;
+                        break;
+                    }
+                }
+            }
+            return this.xf.result(result);
+        };
+        XGroupBy.prototype.step = function (result, input) {
+            var key = this.f(input);
+            this.inputs[key] = this.inputs[key] || [
+                key,
+                []
+            ];
+            this.inputs[key][1] = _append(input, this.inputs[key][1]);
+            return result;
+        };
+        return _curry2(function _xgroupBy(f, xf) {
+            return new XGroupBy(f, xf);
+        });
+    }();
+
+    /**
+     * Returns `true` if all elements of the list match the predicate, `false` if there are any
+     * that don't.
+     *
+     * Acts as a transducer if a transformer is given in list position.
+     * @see R.transduce
+     *
+     * @func
+     * @memberOf R
+     * @category List
+     * @sig (a -> Boolean) -> [a] -> Boolean
+     * @param {Function} fn The predicate function.
+     * @param {Array} list The array to consider.
+     * @return {Boolean} `true` if the predicate is satisfied by every element, `false`
+     *         otherwise.
+     * @example
+     *
+     *      var lessThan2 = R.flip(R.lt)(2);
+     *      var lessThan3 = R.flip(R.lt)(3);
+     *      var xs = R.range(1, 3);
+     *      xs; //=> [1, 2]
+     *      R.all(lessThan2)(xs); //=> false
+     *      R.all(lessThan3)(xs); //=> true
+     */
+    var all = _curry2(_dispatchable('all', _xall, _all));
+
+    /**
+     * Returns `true` if at least one of elements of the list match the predicate, `false`
+     * otherwise.
+     *
+     * Acts as a transducer if a transformer is given in list position.
+     * @see R.transduce
+     *
+     * @func
+     * @memberOf R
+     * @category List
+     * @sig (a -> Boolean) -> [a] -> Boolean
+     * @param {Function} fn The predicate function.
+     * @param {Array} list The array to consider.
+     * @return {Boolean} `true` if the predicate is satisfied by at least one element, `false`
+     *         otherwise.
+     * @example
+     *
+     *      var lessThan0 = R.flip(R.lt)(0);
+     *      var lessThan2 = R.flip(R.lt)(2);
+     *      var xs = R.range(1, 3);
+     *      xs; //=> [1, 2]
+     *      R.any(lessThan0)(xs); //=> false
+     *      R.any(lessThan2)(xs); //=> true
+     */
+    var any = _curry2(_dispatchable('any', _xany, _any));
+
     /**
      * Returns a new list containing the contents of the given list, followed by the given
      * element.
@@ -3924,6 +4170,25 @@
      *      R.append(['tests'], ['write', 'more']); //=> ['write', 'more', ['tests']]
      */
     var append = _curry2(_append);
+
+    /**
+     * Flipped version of R.append.
+     *
+     * @deprecated since v0.11.0
+     * @func
+     * @memberOf R
+     * @category List
+     * @sig [a] -> a -> [a]
+     * @param {Array} list
+     * @param {*} el
+     * @return {Array}
+     * @example
+     *
+     *      R.appendTo([], 1); //=> [1]
+     *      R.appendTo([1, 2, 3], 4); //=> [1, 2, 3, 4]
+     *      R.appendTo([1, 2, 3], [4, 5, 6]); //=> [1, 2, 3, [4, 5, 6]]
+     */
+    var appendTo = _curry2(_appendTo);
 
     /**
      * Makes a shallow clone of an object, setting or overriding the nodes
@@ -4245,6 +4510,9 @@
     /**
      * Returns a new list containing all but the first `n` elements of the given `list`.
      *
+     * Acts as a transducer if a transformer is given in list position.
+     * @see R.transduce
+     *
      * @func
      * @memberOf R
      * @category List
@@ -4256,8 +4524,38 @@
      *
      *     R.drop(3, [1,2,3,4,5,6,7]); //=> [4,5,6,7]
      */
-    var drop = _curry2(_checkForMethod('drop', function drop(n, list) {
+    var drop = _curry2(_dispatchable('drop', _xdrop, function drop(n, list) {
         return n < list.length ? _slice(list, n) : [];
+    }));
+
+    /**
+     * Returns a new list containing the last `n` elements of a given list, passing each value
+     * to the supplied predicate function, skipping elements while the predicate function returns
+     * `true`. The predicate function is passed one argument: *(value)*.
+     *
+     * Acts as a transducer if a transformer is given in list position.
+     * @see R.transduce
+     *
+     * @func
+     * @memberOf R
+     * @category List
+     * @sig (a -> Boolean) -> [a] -> [a]
+     * @param {Function} fn The function called per iteration.
+     * @param {Array} list The collection to iterate over.
+     * @return {Array} A new array.
+     * @example
+     *
+     *      var lteTwo = function(x) {
+     *        return x <= 2;
+     *      };
+     *
+     *      R.dropWhile(lteTwo, [1, 2, 3, 4]); //=> [3, 4]
+     */
+    var dropWhile = _curry2(_dispatchable('dropWhile', _xdropWhile, function dropWhile(pred, list) {
+        var idx = -1, len = list.length;
+        while (++idx < len && pred(list[idx])) {
+        }
+        return _slice(list, idx);
     }));
 
     /**
@@ -4285,6 +4583,9 @@
      * `Array.prototype.filter` method. For more details on this behavior, see:
      * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/filter#Description
      *
+     * Acts as a transducer if a transformer is given in list position.
+     * @see R.transduce
+     *
      * @func
      * @memberOf R
      * @category List
@@ -4299,7 +4600,131 @@
      *      };
      *      R.filter(isEven, [1, 2, 3, 4]); //=> [2, 4]
      */
-    var filter = _curry2(_checkForMethod('filter', _filter));
+    var filter = _curry2(_dispatchable('filter', _xfilter, _filter));
+
+    /**
+     * Returns the first element of the list which matches the predicate, or `undefined` if no
+     * element matches.
+     *
+     * Acts as a transducer if a transformer is given in list position.
+     * @see R.transduce
+     *
+     * @func
+     * @memberOf R
+     * @category List
+     * @sig (a -> Boolean) -> [a] -> a | undefined
+     * @param {Function} fn The predicate function used to determine if the element is the
+     *        desired one.
+     * @param {Array} list The array to consider.
+     * @return {Object} The element found, or `undefined`.
+     * @example
+     *
+     *      var xs = [{a: 1}, {a: 2}, {a: 3}];
+     *      R.find(R.propEq('a', 2))(xs); //=> {a: 2}
+     *      R.find(R.propEq('a', 4))(xs); //=> undefined
+     */
+    var find = _curry2(_dispatchable('find', _xfind, function find(fn, list) {
+        var idx = -1;
+        var len = list.length;
+        while (++idx < len) {
+            if (fn(list[idx])) {
+                return list[idx];
+            }
+        }
+    }));
+
+    /**
+     * Returns the index of the first element of the list which matches the predicate, or `-1`
+     * if no element matches.
+     *
+     * Acts as a transducer if a transformer is given in list position.
+     * @see R.transduce
+     *
+     * @func
+     * @memberOf R
+     * @category List
+     * @sig (a -> Boolean) -> [a] -> Number
+     * @param {Function} fn The predicate function used to determine if the element is the
+     * desired one.
+     * @param {Array} list The array to consider.
+     * @return {Number} The index of the element found, or `-1`.
+     * @example
+     *
+     *      var xs = [{a: 1}, {a: 2}, {a: 3}];
+     *      R.findIndex(R.propEq('a', 2))(xs); //=> 1
+     *      R.findIndex(R.propEq('a', 4))(xs); //=> -1
+     */
+    var findIndex = _curry2(_dispatchable('findIndex', _xfindIndex, function findIndex(fn, list) {
+        var idx = -1;
+        var len = list.length;
+        while (++idx < len) {
+            if (fn(list[idx])) {
+                return idx;
+            }
+        }
+        return -1;
+    }));
+
+    /**
+     * Returns the last element of the list which matches the predicate, or `undefined` if no
+     * element matches.
+     *
+     * Acts as a transducer if a transformer is given in list position.
+     * @see R.transduce
+     *
+     * @func
+     * @memberOf R
+     * @category List
+     * @sig (a -> Boolean) -> [a] -> a | undefined
+     * @param {Function} fn The predicate function used to determine if the element is the
+     * desired one.
+     * @param {Array} list The array to consider.
+     * @return {Object} The element found, or `undefined`.
+     * @example
+     *
+     *      var xs = [{a: 1, b: 0}, {a:1, b: 1}];
+     *      R.findLast(R.propEq('a', 1))(xs); //=> {a: 1, b: 1}
+     *      R.findLast(R.propEq('a', 4))(xs); //=> undefined
+     */
+    var findLast = _curry2(_dispatchable('findLast', _xfindLast, function findLast(fn, list) {
+        var idx = list.length;
+        while (idx--) {
+            if (fn(list[idx])) {
+                return list[idx];
+            }
+        }
+    }));
+
+    /**
+     * Returns the index of the last element of the list which matches the predicate, or
+     * `-1` if no element matches.
+     *
+     * Acts as a transducer if a transformer is given in list position.
+     * @see R.transduce
+     *
+     * @func
+     * @memberOf R
+     * @category List
+     * @sig (a -> Boolean) -> [a] -> Number
+     * @param {Function} fn The predicate function used to determine if the element is the
+     * desired one.
+     * @param {Array} list The array to consider.
+     * @return {Number} The index of the element found, or `-1`.
+     * @example
+     *
+     *      var xs = [{a: 1, b: 0}, {a:1, b: 1}];
+     *      R.findLastIndex(R.propEq('a', 1))(xs); //=> 1
+     *      R.findLastIndex(R.propEq('a', 4))(xs); //=> -1
+     */
+    var findLastIndex = _curry2(_dispatchable('findLastIndex', _xfindLastIndex, function findLastIndex(fn, list) {
+        var idx = list.length;
+        while (idx--) {
+            if (fn(list[idx])) {
+                return idx;
+            }
+        }
+        return -1;
+    }));
 
     /**
      * Returns a new list by pulling every item out of it (and all its sub-arrays) and putting
@@ -4404,6 +4829,9 @@
      * Splits a list into sub-lists stored in an object, based on the result of calling a String-returning function
      * on each element, and grouping the results according to values returned.
      *
+     * Acts as a transducer if a transformer is given in list position.
+     * @see R.transduce
+     *
      * @func
      * @memberOf R
      * @category List
@@ -4433,13 +4861,13 @@
      *     //   'F': [{name: 'Eddy', score: 58}]
      *     // }
      */
-    var groupBy = _curry2(function groupBy(fn, list) {
+    var groupBy = _curry2(_dispatchable('groupBy', _xgroupBy, function groupBy(fn, list) {
         return _reduce(function (acc, elt) {
             var key = fn(elt);
             acc[key] = _append(elt, acc[key] || (acc[key] = []));
             return acc;
         }, {}, list);
-    });
+    }));
 
     /**
      * Returns the first element in a list.
@@ -4655,6 +5083,9 @@
      * native `Array.prototype.map` method. For more details on this behavior, see:
      * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map#Description
      *
+     * Acts as a transducer if a transformer is given in list position.
+     * @see R.transduce
+     *
      * @func
      * @memberOf R
      * @category List
@@ -4670,7 +5101,7 @@
      *
      *      R.map(double, [1, 2, 3]); //=> [2, 4, 6]
      */
-    var map = _curry2(_checkForMethod('map', _map));
+    var map = _curry2(_dispatchable('map', _xmap, _map));
 
     /**
      * Map, but for objects. Creates an object with the same keys as `obj` and values
@@ -4781,6 +5212,24 @@
     var min = _createMaxMin(_lt, Infinity);
 
     /**
+     * Returns `true` if no elements of the list match the predicate,
+     * `false` otherwise.
+     *
+     * @func
+     * @memberOf R
+     * @category List
+     * @sig (a -> Boolean) -> [a] -> Boolean
+     * @param {Function} fn The predicate function.
+     * @param {Array} list The array to consider.
+     * @return {Boolean} `true` if the predicate is not satisfied by every element, `false` otherwise.
+     * @example
+     *
+     *      R.none(isNaN, [1, 2, 3]); //=> true
+     *      R.none(isNaN, [1, 2, 3, NaN]); //=> false
+     */
+    var none = _curry2(_not(_dispatchable('any', _xany, _any)));
+
+    /**
      * Accepts as its arguments a function and any number of values and returns a function that,
      * when invoked, calls the original function with all of the values prepended to the
      * original function's arguments list. In some libraries this function is named `applyLeft`.
@@ -4834,6 +5283,34 @@
      *      greetMsJaneJones('Hello'); //=> 'Hello, Ms. Jane Jones!'
      */
     var partialRight = curry(_createPartialApplicator(flip(_concat)));
+
+    /**
+     * Takes a predicate and a list and returns the pair of lists of
+     * elements which do and do not satisfy the predicate, respectively.
+     *
+     * @func
+     * @memberOf R
+     * @category List
+     * @sig (a -> Boolean) -> [a] -> [[a],[a]]
+     * @param {Function} pred A predicate to determine which array the element belongs to.
+     * @param {Array} list The array to partition.
+     * @return {Array} A nested array, containing first an array of elements that satisfied the predicate,
+     *         and second an array of elements that did not satisfy.
+     * @example
+     *
+     *      R.partition(R.contains('s'), ['sss', 'ttt', 'foo', 'bars']);
+     *      //=> [ [ 'sss', 'bars' ],  [ 'ttt', 'foo' ] ]
+     */
+    var partition = _curry2(function partition(pred, list) {
+        return _reduce(function (acc, elt) {
+            var xs = acc[pred(elt) ? 0 : 1];
+            xs[xs.length] = elt;
+            return acc;
+        }, [
+            [],
+            []
+        ], list);
+    });
 
     /**
      * Creates a new function that runs each of the functions supplied as parameters in turn,
@@ -4938,22 +5415,6 @@
     var prependTo = flip(_prepend);
 
     /**
-     * Multiplies together all the elements of a list.
-     *
-     * @func
-     * @memberOf R
-     * @category Math
-     * @sig [Number] -> Number
-     * @param {Array} list An array of numbers
-     * @return {Number} The product of all the numbers in the list.
-     * @see reduce
-     * @example
-     *
-     *      R.product([2,4,6,8,100,1]); //=> 38400
-     */
-    var product = reduce(_multiply, 1);
-
-    /**
      * Returns the value at the specified property.
      * The only difference from `prop` is the parameter order.
      *
@@ -4971,6 +5432,37 @@
      *      R.propOf({x: 100}, 'x'); //=> 100
      */
     var propOf = flip(prop);
+
+    /**
+     * Returns a single item by iterating through the list, successively calling the iterator
+     * function and passing it an accumulator value and the current value from the array, and
+     * then passing the result to the next call.
+     *
+     * The iterator function receives two values: *(acc, value)*
+     *
+     * Note: `R.reduce` does not skip deleted or unassigned indices (sparse arrays), unlike
+     * the native `Array.prototype.reduce` method. For more details on this behavior, see:
+     * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/reduce#Description
+     *
+     * @func
+     * @memberOf R
+     * @category List
+     * @sig (a,b -> a) -> a -> [b] -> a
+     * @param {Function} fn The iterator function. Receives two values, the accumulator and the
+     *        current element from the array.
+     * @param {*} acc The accumulator value.
+     * @param {Array} list The list to iterate over.
+     * @return {*} The final, accumulated value.
+     * @example
+     *
+     *      var numbers = [1, 2, 3];
+     *      var add = function(a, b) {
+     *        return a + b;
+     *      };
+     *
+     *      R.reduce(add, 10, numbers); //=> 16
+     */
+    var reduce = _curry3(_reduce);
 
     /**
      * Similar to `filter`, except that it keeps only values for which the given predicate
@@ -5129,6 +5621,22 @@
     var substringTo = substring(0);
 
     /**
+     * Adds together all the elements of a list.
+     *
+     * @func
+     * @memberOf R
+     * @category Math
+     * @sig [Number] -> Number
+     * @param {Array} list An array of numbers
+     * @return {Number} The sum of all the numbers in the list.
+     * @see reduce
+     * @example
+     *
+     *      R.sum([2,4,6,8,100,1]); //=> 121
+     */
+    var sum = reduce(_add, 0);
+
+    /**
      * Returns all but the first element of a list. If the list provided has the `tail` method,
      * it will instead return `list.tail()`.
      *
@@ -5151,6 +5659,9 @@
      * Returns a new list containing the first `n` elements of the given list.  If
      * `n > * list.length`, returns a list of `list.length` elements.
      *
+     * Acts as a transducer if a transformer is given in list position.
+     * @see R.transduce
+     *
      * @func
      * @memberOf R
      * @category List
@@ -5159,7 +5670,7 @@
      * @param {Array} list The array to query.
      * @return {Array} A new array containing the first elements of `list`.
      */
-    var take = _curry2(_checkForMethod('take', function (n, list) {
+    var take = _curry2(_dispatchable('take', _xtake, function take(n, list) {
         return _slice(list, 0, Math.min(n, list.length));
     }));
 
@@ -5168,6 +5679,9 @@
      * to the supplied predicate function, and terminating when the predicate function returns
      * `false`. Excludes the element that caused the predicate function to fail. The predicate
      * function is passed one argument: *(value)*.
+     *
+     * Acts as a transducer if a transformer is given in list position.
+     * @see R.transduce
      *
      * @func
      * @memberOf R
@@ -5184,7 +5698,7 @@
      *
      *      R.takeWhile(isNotFour, [1, 2, 3, 4]); //=> [1, 2, 3]
      */
-    var takeWhile = _curry2(_checkForMethod('takeWhile', function (fn, list) {
+    var takeWhile = _curry2(_dispatchable('takeWhile', _xtakeWhile, function takeWhile(fn, list) {
         var idx = -1, len = list.length;
         while (++idx < len && fn(list[idx])) {
         }
@@ -5238,6 +5752,50 @@
      *      R.toUpper('abc'); //=> 'ABC'
      */
     var toUpper = invoker(0, 'toUpperCase');
+
+    /**
+     * Initializes a transducer using supplied iterator function. Returns a single item by
+     * iterating through the list, successively calling the transformed iterator function and
+     * passing it an accumulator value and the current value from the array, and then passing
+     * the result to the next call.
+     *
+     * The iterator function receives two values: *(acc, value)*. It will be wrapped as a
+     * transformer to initialize the transducer. A transformer can be passed directly in place
+     * of an iterator function.
+     *
+     * A transducer is a function that accepts a transformer and returns a transformer and can
+     * be composed directly.
+     *
+     * A transformer is an an object that provides a 2-arity reducing iterator function, step,
+     * 0-arity initial value function, init, and 1-arity result extraction function, result.
+     * The step function is used as the iterator function in reduce. The result function is used
+     * to convert the final accumulator into the return type and in most cases is R.identity.
+     * The init function can be used to provide an initial accumulator, but is ignored by transduce.
+     *
+     * The iteration is performed with R.reduce after initializing the transducer.
+     *
+     * @func
+     * @memberOf R
+     * @category List
+     * @sig (c -> c) -> (a,b -> a) -> a -> [b] -> a
+     * @param {Function} xf The transducer function. Receives a transformer and returns a transformer.
+     * @param {Function} fn The iterator function. Receives two values, the accumulator and the
+     *        current element from the array. Wrapped as transformer, if necessary, and used to
+     *        initialize the transducer
+     * @param {*} acc The initial accumulator value.
+     * @param {Array} list The list to iterate over.
+     * @see R.into
+     * @return {*} The final, accumulated value.
+     * @example
+     *
+     *      var numbers = [1, 2, 3, 4];
+     *      var transducer = R.compose(R.map(R.add(1)), R.take(2));
+     *
+     *      R.transduce(transducer, R.appendTo, [], numbers); //=> [2, 3]
+     */
+    var transduce = curryN(4, function (xf, fn, acc, list) {
+        return typeof fn === 'function' ? _reduce(xf(_xwrap(fn)), acc, list) : _reduce(xf(fn), acc, list);
+    });
 
     /**
      * Combines two lists into a set (i.e. no duplicates) composed of the elements of each list.  Duplication is
@@ -5606,25 +6164,6 @@
      *      R.ap([R.multiply(2), R.add(3)], [1,2,3]); //=> [2, 4, 6, 4, 5, 6]
      */
     var ap = _curry2(_ap);
-
-    /**
-     * Flipped version of R.append.
-     *
-     * @deprecated since v0.11.0
-     * @func
-     * @memberOf R
-     * @category List
-     * @sig [a] -> a -> [a]
-     * @param {Array} list
-     * @param {*} el
-     * @return {Array}
-     * @example
-     *
-     *      R.appendTo([], 1); //=> [1]
-     *      R.appendTo([1, 2, 3], 4); //=> [1, 2, 3, 4]
-     *      R.appendTo([1, 2, 3], [4, 5, 6]); //=> [1, 2, 3, [4, 5, 6]]
-     */
-    var appendTo = flip(_append);
 
     /**
      * Returns the result of calling its first argument with the remaining
@@ -6084,6 +6623,22 @@
     });
 
     /**
+     * Multiplies together all the elements of a list.
+     *
+     * @func
+     * @memberOf R
+     * @category Math
+     * @sig [Number] -> Number
+     * @param {Array} list An array of numbers
+     * @return {Number} The product of all the numbers in the list.
+     * @see reduce
+     * @example
+     *
+     *      R.product([2,4,6,8,100,1]); //=> 38400
+     */
+    var product = reduce(_multiply, 1);
+
+    /**
      * Reasonable analog to SQL `select` statement.
      *
      * @func
@@ -6121,6 +6676,41 @@
      *      R.union([1, 2, 3], [2, 3, 4]); //=> [1, 2, 3, 4]
      */
     var union = _curry2(compose(uniq, _concat));
+
+    var _stepCat = function () {
+        var _stepCatArray = {
+            init: Array,
+            step: _appendTo,
+            result: _identity
+        };
+        var _stepCatString = {
+            init: String,
+            step: _add,
+            result: _identity
+        };
+        var _stepCatObject = {
+            init: Object,
+            step: function (result, input) {
+                return merge(result, isArrayLike(input) ? _createMapEntry(input[0], input[1]) : input);
+            },
+            result: _identity
+        };
+        return function _stepCat(obj) {
+            if (_isTransformer(obj)) {
+                return obj;
+            }
+            if (isArrayLike(obj)) {
+                return _stepCatArray;
+            }
+            if (typeof obj === 'string') {
+                return _stepCatString;
+            }
+            if (typeof obj === 'object') {
+                return _stepCatObject;
+            }
+            throw new Error('Cannot create transformer for ' + obj);
+        };
+    }();
 
     /**
      * Turns a list of Functors into a Functor of a list.
@@ -6175,6 +6765,44 @@
      */
     var construct = _curry1(function construct(Fn) {
         return constructN(Fn.length, Fn);
+    });
+
+    /**
+     * Transforms the items of the list with the transducer and appends the transformed items to
+     * the accumulator using an appropriate iterator function based on the accumulator type.
+     *
+     * The accumulator can be an array, string, object or a transformer. Iterated items will
+     * be appended to arrays and concatenated to strings. Objects will be merged directly or 2-item
+     * arrays will be merged as key, value pairs.
+     *
+     * The accumulator can also be a transformer object that provides a 2-arity reducing iterator
+     * function, step, 0-arity initial value function, init, and 1-arity result extraction function
+     * result. The step function is used as the iterator function in reduce. The result function is
+     * used to convert the final accumulator into the return type and in most cases is R.identity.
+     * The init function is used to provide the initial accumulator.
+     *
+     * The iteration is performed with R.reduce after initializing the transducer.
+     *
+     * @func
+     * @memberOf R
+     * @category List
+     * @sig a -> (b -> b) -> [c] -> a
+     * @param {*} acc The initial accumulator value.
+     * @param {Function} xf The transducer function. Receives a transformer and returns a transformer.
+     * @param {Array} list The list to iterate over.
+     * @return {*} The final, accumulated value.
+     * @example
+     *
+     *      var numbers = [1, 2, 3, 4];
+     *      var transducer = R.compose(R.map(R.add(1)), R.take(2));
+     *
+     *      R.into([], transducer, numbers); //=> [2, 3]
+     *
+     *      var intoArray = R.into([]);
+     *      intoArray(transducer, numbers); //=> [2, 3]
+     */
+    var into = _curry3(function into(acc, xf, list) {
+        return _isTransformer(acc) ? _reduce(xf(acc), acc.init(), list) : _reduce(xf(_stepCat(acc)), acc, list);
     });
 
     /**
@@ -6291,6 +6919,7 @@
         installTo: installTo,
         intersection: intersection,
         intersectionWith: intersectionWith,
+        into: into,
         invert: invert,
         invertObj: invertObj,
         invoker: invoker,
@@ -6330,6 +6959,7 @@
         multiply: multiply,
         nAry: nAry,
         negate: negate,
+        none: none,
         not: not,
         nth: nth,
         nthArg: nthArg,
@@ -6384,11 +7014,13 @@
         take: take,
         takeWhile: takeWhile,
         tap: tap,
+        test: test,
         times: times,
         toLower: toLower,
         toPairs: toPairs,
         toPairsIn: toPairsIn,
         toUpper: toUpper,
+        transduce: transduce,
         trim: trim,
         type: type,
         unapply: unapply,
