@@ -1,0 +1,39 @@
+#!/usr/bin/env node
+
+'use strict';
+
+var assert = require('assert');
+var fs = require('fs');
+var path = require('path');
+
+var esperanto = require('esperanto');
+var R = require('ramda');
+var _ = require('lodash');
+
+// Build the index file
+var srcFiles = R.filter(
+	// Ends with .js
+	R.invoker(1, 'endsWith')('.js'),
+	fs.readdirSync('src')
+);
+
+var config = R.zipObj(R.map(R.slice(0, -3), srcFiles), srcFiles);
+
+var template = _.template(fs.readFileSync(path.join(__dirname, '/build.tpl')));
+
+// Generate the index.js file (which could now be used as ramdas mainfile!)
+fs.writeFileSync('src/index.js', template({
+	config: config
+}));
+
+esperanto.bundle({
+	base: 'src',
+	entry: 'index.js'
+})
+.then(function(bundle) {
+	var out = bundle.toUmd({
+		name: 'R',
+		sourceMap: false
+	});
+	fs.writeFile('dist/ramda2.js', out.code, _.noop);
+});
